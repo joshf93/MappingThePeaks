@@ -1,0 +1,59 @@
+#!/bin/bash -login
+ 
+#PBS -l walltime=1:55:00,nodes=1:ppn=1,mem=2gb
+#PBS -j oe
+#PBS -t 2000-2120
+#PBS -o /mnt/home/frank202/avida_workspace/verifBM0_init/output
+
+### change to the working directory where your code is located
+working_dir='cd ${HOME}/avida_workspace/work'
+echo $working_dir
+eval $working_dir
+echo $PWD
+echo 'The above lines should point to the same location.'
+echo
+ls -l
+echo 'The above lines are the files located in the working directory.'
+echo
+
+ls -l {$TMPDIR}
+echo 'The above files are in TMPDIR before the run starts.'
+
+### call your executable
+date
+run_cmd='./avida -set DATA_DIR ${TMPDIR}/replicate_${PBS_ARRAYID} -set RANDOM_SEED ${PBS_ARRAYID} -set EVENTS_FILE ../verifBM0_init/events.cfg -set ENVIRONMENT_FILE ../verifBM0_init/environment.cfg'
+echo 'Run command evaluates to:'
+echo $run_cmd
+eval $run_cmd
+echo
+
+echo 'The events file contents were:'
+cat ../verifBM0_init/events.cfg
+echo
+
+echo 'The environment file contents were:'
+cat ../verifBM0_init/environment.cfg
+echo
+
+echo 'The avida.cfg file contents were:'
+cat avida.cfg
+echo
+
+zip_cmd='zip -r ${TMPDIR}/replicate_${PBS_ARRAYID}.zip ${TMPDIR}/replicate_${PBS_ARRAYID}'
+echo 'Zip command evaluates to:'
+echo $zip_cmd
+eval $zip_cmd
+echo
+
+cp_cmd='cp --verbose ${TMPDIR}/replicate_${PBS_ARRAYID}.zip ${HOME}/avida_workspace/verifBM0_init'
+echo 'Copy command evaluates to:'
+echo $cp_cmd
+eval $cp_cmd
+echo
+
+ls -l {$TMPDIR}
+echo 'The above files are in TMPDIR after the run.'
+echo
+
+date
+
