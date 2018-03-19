@@ -19,18 +19,12 @@ sub_org.sub
 """
 def make_AB(target_dir):
     #Variables
-    #target_dir = "/home/josh/flattest/len20/len20_init/replicate_2000/replicate_2000_alpharun"
+    
     run_name = target_dir.split("/")[-1]+"_AB"
-    run_time = "8:00:00"
-    birthy_methody = "4"
+    run_time = "4:00:00"
+    birthy_methody = "0"
     randy_seedy = 14141
     mut_probs = (0.5, 2.0)
-
-    # Move files
-    #subprocess.call("cp ../../*.cfg .", shell=True, cwd=target_dir)
-    #subprocess.call("cp ../../*.sub .", shell=True, cwd=target_dir)
-    #subprocess.call("cp ../*.cfg .", shell=True, cwd=target_dir)
-    #subprocess.call("cp ../*.sub .", shell=True, cwd=target_dir)
 
     # Crawl the target directory and gather up the dominant files.
     t0 = time.time()

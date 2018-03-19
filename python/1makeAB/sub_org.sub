@@ -37,7 +37,7 @@ echo "The avida.cfg file contents were:"
 cat avida.cfg
 echo
 
-zip_cmd="zip -r ${TMPDIR}/DATA_NAME.zip ${TMPDIR}/DATA_NAME"
+zip_cmd="zip -r ${TMPDIR}/DATA_NAME.zip ${TMPDIR}/DATA_NAME.zip"
 echo "Zip command evaluates to:"
 echo $zip_cmd
 eval $zip_cmd

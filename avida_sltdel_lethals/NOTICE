@@ -1,9 +1,13 @@
 The Avida source code in this repository has been modified to output more information when measuring fitness landscapes (FullLandscape, RandomLandscape, etc).
 
-All edited Avida files are in /avida_sltdel_lethals/avida-core/source/main/.
+All edited Avida files are in /avida_sltdel_lethals/avida-core/source/.
 Specifically, the modified files are:
-cLandscape.h
-cLandscape.cc
+main/cLandscape.h
+main/cLandscape.cc
+actions/PrintActions.cc
 
-These changes cause Avida to report "slightly deleterious" mutations, which are deleterious mutations that reduce fitness by less than 5%. Additionally, it has been modified to output the average fitness of all deleterious *and* lethal mutations. This is distinct from "Average Deleterious Size", which outputs information only on the average fitness of deleterious, but not lethal, mutations.
+
+The first two changes cause Avida to report "slightly deleterious" mutations, which are deleterious mutations that reduce fitness by less than 5%. Additionally, it has been modified to output the average fitness of all deleterious *and* lethal mutations. This is distinct from "Average Deleterious Size", which outputs information only on the average fitness of deleterious, but not lethal, mutations.
+
+The last mutation lets Avida dump lineage grids for making competition videos.
 

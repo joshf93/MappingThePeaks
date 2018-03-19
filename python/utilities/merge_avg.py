@@ -1,7 +1,7 @@
 """Gathers up the avg, dom, etc. files from the replicate runs and merges them
 for analysis in R or other programs. Includes some extra convenience data such
-as fitness after initial phase and pseudogeneration for keeping track of
-generations."""
+as fitness after the end of the initial phase and pseudogeneration for keeping
+track of generations."""
 
 import sys
 import os
@@ -11,7 +11,6 @@ import subprocess
 import argparse
 
 def split_alpha(filename):
-    #replicate_015762_4.5_alphas_popA_r9
     filename_split = filename.split("_")
     repid = "{}_{}".format(filename_split[0], filename_split[1])
     mutrate = filename_split[2]
@@ -19,7 +18,6 @@ def split_alpha(filename):
 
     ssv = "{} {} {}".format(repid, mutrate, repnum)
     return(ssv)
-    
     
 
 def merge_folder_data(target_dir, org_folder, destination_dir):
@@ -85,18 +83,14 @@ def merge_folder_data(target_dir, org_folder, destination_dir):
             
 
 if __name__ == "__main__":
+    # Folders to scan
     target_dirs = ["/home/josh/flattest_cleanroom/final_run_AB_makeup/popB"]
+    # Folder containing reference organisms; used to generate "EndOfInitFit"
+    # column. Will fill "EndOfInitFit" with NA if unavailable.
     org_folder =  "/home/josh/flattest_cleanroom/final_run_AB/dominant"
+    # Where the resulting files will go.
     destination_dir = "/home/josh/flattest_cleanroom/final_run_AB_makeup/popB"
     for target in target_dirs:
         merge_folder_data(target, org_folder, destination_dir)
 
-    
-    """
-    #This is for a specific run.
-        for folder in os.scandir(target_dir):
-        for pop in ("popA", "popB"):
-            merge_folder_data("{}/{}".format(folder.path, pop),
-                              org_folder, destination_dir)
-    """
     print("Done!")

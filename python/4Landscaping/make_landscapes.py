@@ -7,11 +7,11 @@ import time
 import subprocess
 
 
-def make_landscape(org_dir, out_base):
-    ref_path = "/home/josh/Link to MappingPeaks/Reference files/verif/4Landscaping/analyze_12_step.cfg"
+def make_landscape(org_dir, out_base, run_name):
+    ref_path = "/home/josh/Link to MappingPeaks/Reference files/verif/4Landscaping/analyze_full_landscape.cfg"
     sub_path = "/home/josh/Link to MappingPeaks/Reference files/verif/4Landscaping/sub_org_landscape.sub"
 
-    out_path = out_base.format("final_run_landscape_long") #org_dir.split("/")[-2]
+    out_path = out_base.format(run_name)
     env_path = org_dir.replace("dominant", "environment_files")
     hpcc_path = "../{}/".format(out_path.split("/")[-1])
 
@@ -66,20 +66,16 @@ def make_landscape(org_dir, out_base):
     megasub_text = megasub_text.split("\n")
     for idx, line in enumerate(megasub_text):
         if idx > 15 and (line.startswith("#") or line.startswith("cd")):
-            megasub_text[idx] = "&fmt=18"
+            megasub_text[idx] = "&fmt=18" # Just a flag that the line needs to go.
     while "&fmt=18" in megasub_text:
         megasub_text.remove("&fmt=18")
 
     with open("{}/subs/megasub.sub".format(out_path), 'w') as megasub:
         megasub.write("\n".join(megasub_text))
-                
-            
-    
 
 if __name__ == "__main__":
-    org_dirs = ["/home/josh/flattest_cleanroom/final_run_comp_BM0/organisms"]
-                
+    org_dir = "/home/josh/flattest_cleanroom/final_run_comp_BM0/organisms"
+    run_name = "your_name_goes_here" 
     out_directory = "/home/josh/flattest_cleanroom/{}"
 
-    for org in org_dirs:
-        make_landscape(org, out_directory)
+    make_landscape(org_dir, out_directory, run_name)

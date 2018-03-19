@@ -1,7 +1,7 @@
 #!/bin/bash -login
  
 #PBS -l walltime=SUB_TIME,nodes=1:ppn=1,mem=2gb
-#PBS -o /mnt/home/frank202/avida_workspace/l80eqval_comp/output
+#PBS -o /mnt/home/frank202/avida_workspace/RUN_NAME/output
 #PBS -j oe
 
 ### change to the working directory where your code is located

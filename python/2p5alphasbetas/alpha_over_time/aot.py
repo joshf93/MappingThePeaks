@@ -135,7 +135,8 @@ def process_folder(dir_path, superfolder, runall = True):
 
 
 if __name__ == "__main__":
-    for folder in os.scandir("/home/josh/archswap/archswap_ir"):
+    target_dir = "/home/josh/archswap/archswap_ir"
+    for folder in os.scandir(target_dir):
         if folder.is_dir() and "replicate" in folder.name:
             process_folder(folder.path, "{}".format(folder.name))
     print("AOT done!")

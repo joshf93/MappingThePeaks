@@ -1,0 +1,804 @@
+---
+title: "Mapping the Peaks R Notebook"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+Figure 1, showing fitness across the adaptation phase. Also shows a boxplot comparing the fitness from the end of the initial phase and the end of the adaptation phase.
+
+```{r, message=FALSE}
+# Load the libraries
+library(plyr)
+library(tidyverse)
+library(stringr)
+library(reshape2)
+library(cowplot)
+library(scales)
+
+# Misc functions
+se <- function(arr) {
+  return(sd(arr) / sqrt(len(arr)))
+}
+maxsd <- function(xarr) {
+  return(mean(xarr) + sd(xarr))
+}
+minsd <- function(xarr) {
+  return(mean(xarr) - sd(xarr))
+}
+bootmean <- function(data, indices) {
+  return(mean(data[indices]))
+}
+
+```
+
+```{r, results='hold'}
+
+# Avg Columns
+avgcols = cols(
+  X1 = col_integer(),
+  X2 = col_double(),
+  X3 = col_double(),
+  X4 = col_double(),
+  X5 = col_double(),
+  X6 = col_double(),
+  X7 = col_double(),
+  X8 = col_double(),
+  X9 = col_double(),
+  X10 = col_double(),
+  X11 = col_double(),
+  X12 = col_double(),
+  X13 = col_double(),
+  X14 = col_double(),
+  X15 = col_double(),
+  X16 = col_double(),
+  X17 = col_double(),
+  X18 = col_character(),
+  X19 = col_double(),
+  X20 = col_integer()
+)
+
+# Dom Columns
+domcols = cols(
+  X1 = col_integer(),
+  X2 = col_double(),
+  X3 = col_double(),
+  X4 = col_double(),
+  X5 = col_double(),
+  X6 = col_integer(),
+  X7 = col_integer(),
+  X8 = col_integer(),
+  X9 = col_double(),
+  X10 = col_integer(),
+  X11 = col_double(),
+  X12 = col_double(),
+  X13 = col_double(),
+  X14 = col_double(),
+  X15 = col_double(),
+  X16 = col_character(),
+  X17 = col_double(),
+  X18 = col_character(),
+  X19 = col_double(),
+  X20 = col_integer()
+)
+
+avgnamescols <- c(
+  X1 = "Update",
+  X2 = "Merit",
+  X3 = "GestationTime",
+  X4 = "Fitness",
+  X5 = "RepRate",
+  X6 = "Size",
+  X7 = "CopiedSize",
+  X8 = "ExecSize",
+  X9 = "Abundance",
+  X10 = "PropGaveBirth",
+  X11 = "PropBreedTrue",
+  X12 = "GenotypeDepth",
+  X13 = "Generation",
+  X14 = "NeutralMetric",
+  X15 = "LineageLabel",
+  X16 = "TrueRepRate",
+  X17 = "Broken",
+  X18 = "Replicate",
+  X19 = "EndOfInitFit",
+  X20 = "IndexInAvgFile"
+
+)
+
+fr_popA <- read_delim("./data/final_run_AB_popA_recomb_ave.dat", " ",
+                        escape_double = FALSE, col_names = FALSE, trim_ws = TRUE, skip = 22, col_types = avgcols)
+fr_popA$pop = "Fit"
+fr_popA <- plyr::rename(fr_popA, avgnamescols)
+
+fr_popB <- read_delim("./data/final_run_AB_popB_recomb_ave.dat", " ",
+                        escape_double = FALSE, col_names = FALSE, trim_ws = TRUE, skip = 22, col_types = avgcols)
+fr_popB$pop = "Flat"
+fr_popB <- plyr::rename(fr_popB, avgnamescols)
+
+fr_AB <- rbind(fr_popA, fr_popB)
+```
+
+```{r}
+fr_adapt_fit <- ggplot(data = fr_AB) +
+  labs(x = "Generations", y = expression(W[avg]/W[initial]), color = "", fill = "") +
+  background_grid(major = "xy", minor = "none") +
+  stat_summary_bin(geom = "ribbon", fun.ymin = minsd, fun.ymax = maxsd, binwidth = 25, alpha = 0.5, aes(x = Generation, y = Fitness/EndOfInitFit, fill = pop)) +
+  stat_summary_bin(geom = "line", fun.y = mean, binwidth = 25, aes(x = Generation, y = Fitness/EndOfInitFit, color = pop)) +
+  scale_color_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  scale_fill_manual(values = c(Fit = "lightblue", Flat = "lightpink")) +
+  scale_y_log10()
+
+fr_adapt_fit
+
+```
+
+Fitness before and after boxplots.
+```{r}
+statscols <- cols(
+  name = col_character(),
+  viable = col_integer(),
+  merit = col_double(),
+  gestation_time = col_integer(),
+  fitness = col_double(),
+  errors = col_integer(),
+  genome_size = col_integer(),
+  copied_size = col_integer(),
+  executed_size = col_integer(),
+  task_str = col_integer(),
+  task_count = col_integer()
+)
+
+fr_init_stats <- read_csv("./data/final_run_init_stats.csv", col_types = statscols)
+fr_init_stats$pop <- "Initial"
+fr_popA_stats <- read_csv("./data/final_run_popA_stats.csv", col_types = statscols)
+fr_popA_stats$pop <- "Fit"
+fr_popB_stats <- read_csv("./data/final_run_popB_stats.csv", col_types = statscols)
+fr_popB_stats$pop <- "Flat"
+
+fr_stats <- plyr::rbind.fill(fr_init_stats, fr_popA_stats, fr_popB_stats)
+
+comp_fit_bplot <- ggplot(fr_stats, aes(x = pop, y = fitness, fill = pop)) +
+  geom_boxplot(notch = TRUE) +
+  scale_y_log10(labels = trans_format("log10", math_format(10^.x))) +
+  labs(x = "", y = "Fitness", fill = "") + 
+  scale_x_discrete(limits = c("Initial", "Fit", "Flat")) +
+  scale_fill_manual(values = c("Fit" = "dodgerblue", "Flat" = "firebrick1", "Initial" = "mediumorchid")) +
+  guides(fill=FALSE)
+
+comp_fit_bplot
+```
+
+Misc. boxplots, may not use.
+```{r}
+comp_tasks_bplot <- ggplot(fr_stats, aes(x = pop, y = errors, fill = pop)) +
+  geom_boxplot(notch = TRUE) +
+  scale_y_log10() +
+  labs(x = "", y = "Errors", fill = "") +
+  scale_x_discrete(limits = c("Initial", "Fit", "Flat")) +
+  scale_fill_manual(values = c("Fit" = "dodgerblue", "Flat" = "firebrick1", "Initial" = "mediumorchid")) +
+  guides(fill=FALSE)
+
+comp_gest_bplot <- ggplot(fr_stats, aes(x = pop, y = gestation_time, fill = pop)) +
+  geom_boxplot(notch = TRUE) +
+  labs(x = "", y = "Gestation Time", fill = "") + 
+  scale_x_discrete(limits = c("Initial", "Fit", "Flat")) +
+  scale_fill_manual(values = c("Fit" = "dodgerblue", "Flat" = "firebrick1", "Initial" = "mediumorchid")) +
+  guides(fill=FALSE)
+
+comp_exec_bplot <- ggplot(fr_stats, aes(x = pop, y = executed_size, fill = pop)) +
+  geom_boxplot(notch = TRUE) +
+  labs(x = "", y = "Executed Size", fill = "") + 
+  scale_x_discrete(limits = c("Initial", "Fit", "Flat")) +
+  scale_fill_manual(values = c("Fit" = "dodgerblue", "Flat" = "firebrick1", "Initial" = "mediumorchid")) +
+  guides(fill=FALSE)
+
+comp_tasks_bplot
+comp_gest_bplot
+comp_exec_bplot
+
+#exsize_gest_plt <- ggdraw() + draw_plot(comp_gest_bplot, x = 0, y = 0, width = 0.5, height = 1) +
+#  draw_plot(comp_exec_bplot, x = 0.5, y = 0, width = 0.5, height = 1) + draw_plot_label(c("a", "b"), c(0, 0.5), c(1, 1))
+#ggsave(exsize_gest_plt, filename = "S1ExecGestPlt.pdf", device = cairo_pdf, width = 9, height = 5)
+```
+Test statistics for comparison.
+```{r}
+wilcox.test(filter(fr_stats, pop == "Initial")$fitness, filter(fr_stats, pop == "Fit")$fitness)
+wilcox.test(filter(fr_stats, pop == "Fit")$fitness, filter(fr_stats, pop == "Flat")$fitness)
+wilcox.test(filter(fr_stats, pop == "Initial")$fitness, filter(fr_stats, pop == "Flat")$fitness)
+
+wilcox.test(filter(fr_stats, pop == "Initial")$errors, filter(fr_stats, pop == "Fit")$errors)
+wilcox.test(filter(fr_stats, pop == "Fit")$errors, filter(fr_stats, pop == "Flat")$errors)
+wilcox.test(filter(fr_stats, pop == "Initial")$errors, filter(fr_stats, pop == "Flat")$errors)
+
+wilcox.test(filter(fr_stats, pop == "Initial")$gestation_time, filter(fr_stats, pop == "Fit")$gestation_time)
+wilcox.test(filter(fr_stats, pop == "Fit")$gestation_time, filter(fr_stats, pop == "Flat")$gestation_time)
+wilcox.test(filter(fr_stats, pop == "Initial")$gestation_time, filter(fr_stats, pop == "Flat")$gestation_time)
+
+wilcox.test(filter(fr_stats, pop == "Initial")$executed_size, filter(fr_stats, pop == "Fit")$executed_size)
+wilcox.test(filter(fr_stats, pop == "Fit")$executed_size, filter(fr_stats, pop == "Flat")$executed_size)
+wilcox.test(filter(fr_stats, pop == "Initial")$executed_size, filter(fr_stats, pop == "Flat")$executed_size)
+
+```
+
+Figure 1
+```{r}
+fit_combo_plt <- ggdraw() + draw_plot(comp_fit_bplot, x = 0, y = 0, width = 0.3, height = 1) +
+  draw_plot(fr_adapt_fit, x = 0.3, y = 0, width = 0.7, height = 1) + draw_plot_label(c("a", "b"), c(0.01, 0.31), c(0.95, 0.95))
+ggsave(fit_combo_plt, filename = "Fig1CombFitPlt.pdf", device = cairo_pdf, width = 8.5, height = 3)
+fit_combo_plt
+```
+
+Figure 2, showing an example competition assay.
+```{r}
+# Load the libraries
+library(tidyverse)
+library(plyr)
+library(reshape2)
+library(cowplot)
+library(scales)
+
+# Misc functions
+se <- function(arr) {
+  return(sd(arr) / sqrt(len(arr)))
+}
+maxsd <- function(xarr) {
+  return(mean(xarr) + sd(xarr))
+}
+minsd <- function(xarr) {
+  return(mean(xarr) - sd(xarr))
+}
+bootmean <- function(data, indices) {
+  return(mean(data[indices]))
+}
+
+# Avg Columns
+avgcompcols = cols(
+  X1 = col_integer(),
+  X2 = col_double(),
+  X3 = col_double(),
+  X4 = col_double(),
+  X5 = col_double(),
+  X6 = col_double(),
+  X7 = col_double(),
+  X8 = col_double(),
+  X9 = col_double(),
+  X10 = col_double(),
+  X11 = col_double(),
+  X12 = col_double(),
+  X13 = col_double(),
+  X14 = col_double(),
+  X15 = col_double(),
+  X16 = col_double(),
+  X18 = col_character(),
+  X19 = col_character()
+)
+
+avgcompnamescols <- c(
+  X1 = "Update",
+  X2 = "Merit",
+  X3 = "GestationTime",
+  X4 = "Fitness",
+  X5 = "RepRate",
+  X6 = "Size",
+  X7 = "CopiedSize",
+  X8 = "ExecSize",
+  X9 = "Abundance",
+  X10 = "PropGaveBirth",
+  X11 = "PropBreedTrue",
+  X12 = "GenotypeDepth",
+  X13 = "Generation",
+  X14 = "NeutralMetric",
+  X15 = "LineageLabel",
+  X16 = "TrueRepRate",
+  X17 = "Replicate",
+  X18 = "SubReplicate",
+  X19 = "MutRate"
+)
+
+comp_avg <- read_delim("./competition/replicate_3279_comp.dat", " ", escape_double = FALSE, trim_ws = TRUE, col_names = FALSE, col_types = avgcompcols)
+comp_avg <- plyr::rename(comp_avg, avgcompnamescols)
+
+mu0p5 <- ggplot(filter(comp_avg, MutRate == "0.5")) +
+  stat_summary_bin(geom = "ribbon", fun.ymin = minsd, fun.ymax = maxsd, binwidth = 1, fill = "mediumaquamarine", aes(x = Generation, y = 1-LineageLabel/7)) +
+  stat_summary_bin(geom = "line", fun.y = mean, binwidth = 1, aes(x = Generation, y = 1-LineageLabel/7)) +
+  scale_y_continuous(limits = c(0, 1.0)) +
+  labs(y = "Fraction Fit") +
+  annotate('text', label = "μ = 0.5", x = 150, y = 0.75)
+
+mu1p0 <- ggplot(filter(comp_avg, MutRate == "1.0")) +
+  stat_summary_bin(geom = "ribbon", fun.ymin = minsd, fun.ymax = maxsd, binwidth = 1, fill = "mediumaquamarine", aes(x = Generation, y = 1-LineageLabel/7)) +
+  stat_summary_bin(geom = "line", fun.y = mean, binwidth = 1, aes(x = Generation, y = 1-LineageLabel/7)) +
+  scale_y_continuous(limits = c(0, 1.0)) +
+  labs(y = "Fraction Fit") +
+  annotate('text', label = "μ = 1.0", x = 150, y = 0.75)
+
+mu1p5 <- ggplot(filter(comp_avg, MutRate == "1.5")) +
+  stat_summary_bin(geom = "ribbon", fun.ymin = minsd, fun.ymax = maxsd, binwidth = 1, fill = "mediumaquamarine", aes(x = Generation, y = 1-LineageLabel/7)) +
+  stat_summary_bin(geom = "line", fun.y = mean, binwidth = 1, aes(x = Generation, y = 1-LineageLabel/7)) +
+  scale_y_continuous(limits = c(0, 1.0)) +
+  labs(y = "Fraction Fit") +
+  annotate('text', label = "μ = 1.5", x = 150, y = 0.75)
+
+mu2p0 <- ggplot(filter(comp_avg, MutRate == "2.0")) +
+  stat_summary_bin(geom = "ribbon", fun.ymin = minsd, fun.ymax = maxsd, binwidth = 1, fill = "mediumaquamarine", aes(x = Generation, y = 1-LineageLabel/7)) +
+  stat_summary_bin(geom = "line", fun.y = mean, binwidth = 1, aes(x = Generation, y = 1-LineageLabel/7)) +
+  scale_y_continuous(limits = c(0, 1.0)) +
+  labs(y = "Fraction Fit") +
+  annotate('text', label = "μ = 2.0", x = 150, y = 0.75)
+
+combo_comp <- ggdraw() + draw_plot(mu0p5, 0, 0.5, 0.5, 0.5) + draw_plot(mu1p0, 0.5, 0.5, 0.5, 0.5) + draw_plot(mu1p5, 0, 0, 0.5, 0.5) +
+  draw_plot(mu2p0, 0.5, 0, 0.5, 0.5) + draw_plot_label(label = c("a", "b", "c", "d"), c(0, 0.5, 0, 0.5), c(1.0, 1.0, 0.5, 0.5))
+
+ggsave(combo_comp, filename = "Fig2CompPlt.pdf", device = cairo_pdf, width = 8, height = 5)
+combo_comp
+```
+
+Figure 3, showing comparisons of single step mutations. Also calculates statistics for the comparisons.
+```{r}
+stepcoltypes <- cols(
+  .default = col_double(),
+  X1 = col_integer(),
+  X11 = col_integer(),
+  X12 = col_integer(),
+  X15 = col_integer(),
+  X21 = col_integer(),
+  X22 = col_integer(),
+  X23 = col_integer(),
+  X24 = col_integer(),
+  X25 = col_integer(),
+  X26 = col_integer(),
+  X27 = col_integer(),
+  X28 = col_integer(),
+  X29 = col_character(),
+  X30 = col_character(),
+  X31 = col_character(),
+  X32 = col_character()
+)
+
+stepcolnames <- c(
+  X1 = "Update",
+  X2 = "Lethal",
+  X3 = "Deleterious",
+  X4 = "Slt.Deleterious",
+  X5 = "AnyDel",
+  X6 = "Neutral",
+  X7 = "Beneficial",
+  X8 = "AvgBenSize",
+  X9 = "AvgDelSize",
+  X10 = "AvgDelLethalSize",
+  X11 = "TestedMutants",
+  X12 = "Distance",
+  X13 = "BaseFitness",
+  X14 = "BaseMerit",
+  X15 = "BaseGestation",
+  X16 = "PeakFitness",
+  X17 = "AvgFitness",
+  X18 = "AvgSqFitness",
+  X19 = "TotalS",
+  X20 = "TotalComplex",
+  X21 = "PLethalEpi",
+  X22 = "PSynEpi",
+  X23 = "PAntagEpi",
+  X24 = "PNoEpi",
+  X25 = "AvgSynEpiSize",
+  X26 = "AvgAntagEpiSize",
+  X27 = "AvgSizeNoEpi",
+  X28 = "TotalEpiCount",
+  X29 = "SuperRep",
+  X30 = "StepNum",
+  X31 = "Rep",
+  X32 = "Duplicate"
+)
+
+frls_popA <- read_delim("./landscape/final_run_landscape_long_Fit.dat",  " ", escape_double = FALSE, col_names = FALSE, comment = "#", trim_ws = TRUE, skip = 1, col_types = stepcoltypes)
+frls_popB <- read_delim("./landscape/final_run_landscape_long_Flat.dat",  " ", escape_double = FALSE, col_names = FALSE, comment = "#", trim_ws = TRUE, skip = 1, col_types = stepcoltypes)
+
+frls_popA$pop <- "Fit"
+frls_popB$pop <- "Flat"
+frls_combo <- rbind(frls_popA, frls_popB)
+frls_combo <- plyr::rename(frls_combo, stepcolnames)
+
+frls_melted <- melt(frls_combo[c(2,3,4,5,6,7,30,31,33)], id.vars = c("pop", "StepNum", "Rep"))
+
+onestep_melt <- filter(frls_melted, StepNum == '1one')
+onestep_nonmelt <- subset(frls_combo, StepNum == '1one')
+
+twostep_melt <- filter(frls_melted, StepNum == '2two')
+twostep_nonmelt <- filter(frls_combo, StepNum == "2two")
+
+# Tests for significance
+one_lethal_comp <- wilcox.test(filter(onestep_melt, variable == "Lethal", pop == "Fit")$value, filter(onestep_melt, variable == "Lethal", pop == "Flat")$value)
+one_del_comp <- wilcox.test(filter(onestep_melt, variable == "Deleterious", pop == "Fit")$value, filter(onestep_melt, variable == "Deleterious", pop == "Flat")$value)
+one_sltdel_comp <- wilcox.test(filter(onestep_melt, variable == "Slt.Deleterious", pop == "Fit")$value, filter(onestep_melt, variable == "Slt.Deleterious", pop == "Flat")$value)
+one_anydel_comp <- wilcox.test(filter(onestep_melt, variable == "AnyDel", pop == "Fit")$value, filter(onestep_melt, variable == "AnyDel", pop == "Flat")$value)
+one_neut_comp <- wilcox.test(filter(onestep_melt, variable == "Neutral", pop == "Fit")$value, filter(onestep_melt, variable == "Neutral", pop == "Flat")$value)
+one_ben_comp <- wilcox.test(filter(onestep_melt, variable == "Beneficial", pop == "Fit")$value, filter(onestep_melt, variable == "Beneficial", pop == "Flat")$value)
+one_reldel_comp <- wilcox.test((filter(onestep_nonmelt, pop == "Fit")$AvgFitness / filter(onestep_nonmelt, pop == "Fit")$BaseFitness), (filter(onestep_nonmelt, pop == "Flat")$AvgFitness / filter(onestep_nonmelt, pop == "Flat")$BaseFitness))
+
+two_del_comp <- wilcox.test(filter(onestep_melt, variable == "Deleterious", pop == "Flat")$value, filter(twostep_melt, variable == "Deleterious", pop == "Flat")$value)
+two_del_comp
+
+#formatter <- trans_format("log10", math_format(10^.x))
+
+annotate_txt_size = 7
+
+one_lethal <- ggplot(onestep_nonmelt, aes(x = pop, y = Lethal, fill = pop)) +
+  geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", fill = "") + 
+  scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
+  scale_x_discrete(labels=c("Fit", "Flat")) +
+  guides(fill=FALSE) +
+  annotate(geom = "text", label = "Lethal", x = 0.75, y = max(onestep_nonmelt$Lethal), size = annotate_txt_size)
+
+one_del <- ggplot(onestep_nonmelt, aes(x = pop, y = Deleterious, fill = pop)) +
+  geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", fill = "") + 
+  scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
+  scale_x_discrete(labels=c("Fit", "Flat")) +
+  guides(fill=FALSE)+
+  annotate(geom = "text", label = "Deleterious", x = 0.75, y = max(onestep_nonmelt$Deleterious), size = annotate_txt_size)
+
+one_sltdel <- ggplot(onestep_nonmelt, aes(x = pop, y = Slt.Deleterious, fill = pop)) +
+  geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", fill = "") + 
+  scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
+  scale_x_discrete(labels=c("", "")) +
+  guides(fill=FALSE)+
+  annotate(geom = "text", label = "Slt. Deleterious", x = 0.75, y = max(onestep_nonmelt$Slt.Deleterious), size = annotate_txt_size)
+
+one_neut <- ggplot(onestep_nonmelt, aes(x = pop, y = Neutral, fill = pop)) +
+  geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", fill = "") + 
+  scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
+  scale_x_discrete(labels=c("", "")) +
+  guides(fill=FALSE)+
+  annotate(geom = "text", label = "Neutral", x = 0.75, y = max(onestep_nonmelt$Neutral), size = annotate_txt_size)
+
+one_ben <- ggplot(onestep_nonmelt, aes(x = pop, y = Beneficial, fill = pop)) + geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", fill = "") + 
+  scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
+  scale_x_discrete(labels=c("", "")) +
+  guides(fill=FALSE)+
+  annotate(geom = "text", label = "Beneficial", x = 0.75, y = max(onestep_nonmelt$Beneficial), size = annotate_txt_size)
+
+one_relfit <- ggplot(onestep_nonmelt, aes(x = pop, y = AvgFitness/BaseFitness, fill = pop)) + geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  labs(x = "", y = "Relative Average Fitness", fill = "") +
+  scale_x_discrete(labels = c("Fit", "Flat")) + guides(fill=FALSE) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) #+
+  #annotate(geom = "text", label = "Avg. Rel. Fitness", x = 0.75, y = max(onestep_nonmelt$AvgFitness/onestep_nonmelt$BaseFitness), size = annotate_txt_size)
+
+comb_one_plt <- ggdraw() + draw_plot(one_ben, 0, 0.5, 0.333, 0.5) + draw_plot(one_neut, 0.333, 0.5, 0.333, 0.5) + draw_plot(one_sltdel, 0.666, 0.5, 0.333, 0.5) +
+  draw_plot(one_del, 0, 0, 0.333, 0.5) + draw_plot(one_lethal, 0.333, 0, 0.333, 0.5) + draw_plot(one_relfit, 0.666, 0, 0.333, 0.5) + draw_plot_label(label = c("a", "b", "c", "d", "e", "f"), c(0, 0.333, 0.666,0, 0.333, 0.666), c(1.0, 1.0, 1.0, 0.5, 0.5, 0.5), size = 25)
+
+ggsave(filename = "Fig3OneStepComp.pdf", plot = comb_one_plt, device = cairo_pdf, width = 24, height = 10)
+
+comb_one_plt
+
+one_alldel <- ggplot(onestep_nonmelt, aes(x = pop, y = AnyDel, fill = pop)) +
+  geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", fill = "") + 
+  scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
+  scale_x_discrete(labels=c("", "")) +
+  guides(fill=FALSE)+
+  annotate(geom = "text", label = "All Deleterious", x = 0.75, y = max(onestep_nonmelt$AnyDel), size = annotate_txt_size)
+
+one_reldelsize <- ggplot(onestep_nonmelt, aes(x = pop, y = AvgDelSize/BaseFitness, fill = pop)) + geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  labs(x = "", y = "Relative Fitness of Deleterious Mut.", fill = "") +
+  scale_x_discrete(labels = c("", "")) + guides(fill=FALSE) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20))
+
+one_reldellethalsize <- ggplot(onestep_nonmelt, aes(x = pop, y = AvgDelLethalSize/BaseFitness, fill = pop)) + geom_boxplot(notch = T) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  labs(x = "", y = "Relative Fitness of Del+Lethal Mut.", fill = "") +
+  scale_x_discrete(labels = c("", "")) + guides(fill=FALSE) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20))
+
+one_alldel
+one_reldelsize
+one_reldellethalsize
+
+```
+
+Figure 4, showing the distribution of fitness effects from one to four step mutants.
+```{r}
+
+stepcoltypes <- cols(
+  .default = col_double(),
+  X1 = col_integer(),
+  X11 = col_integer(),
+  X12 = col_integer(),
+  X15 = col_integer(),
+  X21 = col_integer(),
+  X22 = col_integer(),
+  X23 = col_integer(),
+  X24 = col_integer(),
+  X25 = col_integer(),
+  X26 = col_integer(),
+  X27 = col_integer(),
+  X28 = col_integer(),
+  X29 = col_character(),
+  X30 = col_character(),
+  X31 = col_character(),
+  X32 = col_character()
+)
+
+stepcolnames <- c(
+  X1 = "Update",
+  X2 = "Lethal",
+  X3 = "Del", #Note the change here. 
+  X4 = "Slt.Deleterious",
+  X5 = "Deleterious", # "Any Deleterious" in other dataframes.
+  X6 = "Neutral",
+  X7 = "Beneficial",
+  X8 = "AvgBenSize",
+  X9 = "AvgDelSize",
+  X10 = "AvgDelLethalSize",
+  X11 = "TestedMutants",
+  X12 = "Distance",
+  X13 = "BaseFitness",
+  X14 = "BaseMerit",
+  X15 = "BaseGestation",
+  X16 = "PeakFitness",
+  X17 = "AvgFitness",
+  X18 = "AvgSqFitness",
+  X19 = "TotalS",
+  X20 = "TotalComplex",
+  X21 = "PLethalEpi",
+  X22 = "PSynEpi",
+  X23 = "PAntagEpi",
+  X24 = "PNoEpi",
+  X25 = "AvgSynEpiSize",
+  X26 = "AvgAntagEpiSize",
+  X27 = "AvgSizeNoEpi",
+  X28 = "TotalEpiCount",
+  X29 = "SuperRep",
+  X30 = "StepNum",
+  X31 = "Rep",
+  X32 = "Duplicate"
+)
+
+frls_popA <- read_delim("./landscape/final_run_landscape_long_Fit.dat",  " ", escape_double = FALSE, col_names = FALSE, comment = "#", trim_ws = TRUE, skip = 1, col_types = stepcoltypes)
+frls_popB <- read_delim("./landscape/final_run_landscape_long_Flat.dat",  " ", escape_double = FALSE, col_names = FALSE, comment = "#", trim_ws = TRUE, skip = 1, col_types = stepcoltypes)
+
+frls_popA$pop <- "Fit"
+frls_popB$pop <- "Flat"
+frls_combo <- rbind(frls_popA, frls_popB)
+frls_combo <- plyr::rename(frls_combo, stepcolnames)
+
+#frls_melted <- melt(frls_combo[c(2,3,4,5,6,7,30,31,33)], id.vars = c("pop", "StepNum", "Rep")) Lethal, Del, SltDel, AnyDel, Neut, Ben.
+
+frls_melted <- melt(frls_combo[c(2,5,6,7,30,31,33)], id.vars = c("pop", "StepNum", "Rep"))  #Lethal, AnyDel, Neut, Ben.
+
+effect_bplots <- ggplot(frls_melted, aes(x = StepNum, y = value, fill = pop)) +
+  geom_boxplot(notch = T, position = position_dodge(0.9)) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  labs(x = "", y = "Fraction of Mutations", title = "Summarized Distribution of Fitness Effects", fill = "") + 
+  scale_x_discrete(labels=c("1", "2", "3", "4")) +
+  xlab("Distance") +
+  facet_grid(. ~ variable) +
+  scale_y_log10() #actually makes Neut and Ben more readable without killing Lethal and Del too much. log10 makes lethal and del unreadable. None makes neut/ben difficult to read.
+
+ggsave(effect_bplots, filename = "Fig4DFE.pdf", device = cairo_pdf, width = 8, height = 5)
+effect_bplots
+```
+
+Alpha+Beta plots for each replicate.
+```{r}
+stepcoltypes <- cols(
+  .default = col_double(),
+  X1 = col_integer(),
+  X11 = col_integer(),
+  X12 = col_integer(),
+  X15 = col_integer(),
+  X21 = col_integer(),
+  X22 = col_integer(),
+  X23 = col_integer(),
+  X24 = col_integer(),
+  X25 = col_integer(),
+  X26 = col_integer(),
+  X27 = col_integer(),
+  X28 = col_integer(),
+  X29 = col_character(),
+  X30 = col_character(),
+  X31 = col_character(),
+  X32 = col_character()
+)
+
+stepcolnames <- c(
+  X1 = "Update",
+  X2 = "Lethal",
+  X3 = "Deleterious",
+  X4 = "Slt.Deleterious",
+  X5 = "AnyDel",
+  X6 = "Neutral",
+  X7 = "Beneficial",
+  X8 = "AvgBenSize",
+  X9 = "AvgDelSize",
+  X10 = "AvgDelLethalSize",
+  X11 = "TestedMutants",
+  X12 = "Distance",
+  X13 = "BaseFitness",
+  X14 = "BaseMerit",
+  X15 = "BaseGestation",
+  X16 = "PeakFitness",
+  X17 = "AvgFitness",
+  X18 = "AvgSqFitness",
+  X19 = "TotalS",
+  X20 = "TotalComplex",
+  X21 = "PLethalEpi",
+  X22 = "PSynEpi",
+  X23 = "PAntagEpi",
+  X24 = "PNoEpi",
+  X25 = "AvgSynEpiSize",
+  X26 = "AvgAntagEpiSize",
+  X27 = "AvgSizeNoEpi",
+  X28 = "TotalEpiCount",
+  X29 = "SuperRep",
+  X30 = "StepNum",
+  X31 = "Rep",
+  X32 = "Duplicate"
+)
+frls_popA <- read_delim("./landscape/final_run_landscape_long_Fit.dat",  " ", escape_double = FALSE, col_names = FALSE, comment = "#", trim_ws = TRUE, skip = 1, col_types = stepcoltypes)
+frls_popB <- read_delim("./landscape/final_run_landscape_long_Flat.dat",  " ", escape_double = FALSE, col_names = FALSE, comment = "#", trim_ws = TRUE, skip = 1, col_types = stepcoltypes)
+
+frls_popA$pop <- "Fit"
+frls_popB$pop <- "Flat"
+frls_combo <- rbind(frls_popA, frls_popB)
+frls_combo <- plyr::rename(frls_combo, stepcolnames)
+
+frls_combo$RunName <- paste(frls_combo$Rep, frls_combo$pop, sep ="_")
+
+combo_relavgfit <- ggplot(data = frls_combo) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  geom_boxplot(aes(x = StepNum, y = frls_combo$AvgFitness / frls_combo$BaseFitness, fill = pop), notch = TRUE) + 
+  labs(x = "Distance", y = "Avgerage Fitness / Base Fitness", fill = "") +
+  scale_x_discrete(labels = c("1", "2", "3", "4"))
+
+ggsave(combo_relavgfit, filename = "AvgRelFitDist.pdf", device = cairo_pdf, width = 9, height = 5)
+
+combo_reldelsize <- ggplot(data = frls_combo) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  geom_boxplot(aes(x = StepNum, y = frls_combo$AvgDelSize / frls_combo$BaseFitness, fill = pop), notch = TRUE) + 
+  labs(x = "Distance", y = "Deleterious Size / Base Fitness", fill = "") +
+  scale_x_discrete(labels = c("1", "2", "3", "4"))
+
+combo_reldellethalsize <- ggplot(data = frls_combo) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  geom_boxplot(aes(x = StepNum, y = frls_combo$AvgDelLethalSize / frls_combo$BaseFitness, fill = pop), notch = TRUE) + 
+  labs(x = "Distance", y = "Del+Lethal Size / Base Fitness", fill = "") +
+  scale_x_discrete(labels = c("1", "2", "3", "4"))
+
+combo_reldelsize
+combo_reldellethalsize
+ggsave(filename = "RelDelSize.pdf", plot = combo_reldelsize, device = cairo_pdf, width = 10, height = 8)
+ggsave(filename = "RelDelLethalSize.pdf", plot = combo_reldellethalsize, device = cairo_pdf, width = 10, height = 8)
+
+```
+
+
+Calculate all of the alphas and betas using the DFE data. Output plots. Make a new dataframe containing all of the alphas and betas.
+```{r}
+mut_fit_decay <- function(dist, Alpha, Beta) {
+  -Alpha*dist - Beta * dist^2
+}
+
+setwd("./alpha_fits_dfe")
+
+alpha_df <- tibble(RunName = character(), Alpha = double(), Beta = double(), pop = character())
+
+for (repl in unique(frls_combo$Rep)) {
+  fit_fit <-nls(formula = log(AvgFitness/BaseFitness) ~ -alpha*Distance-beta*Distance^2, data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = "")), start = c(alpha = 1, beta = 0.01), control = nls.control(tol = 0.005, warnOnly = TRUE))
+  fit_flat <-nls(formula = log(AvgFitness/BaseFitness) ~ -alpha*Distance-beta*Distance^2, data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = "")), start = c(alpha = 1, beta = 0.01), control = nls.control(tol = 0.005, warnOnly = TRUE))
+  
+  alphaplt <- ggplot() + 
+    geom_point(aes(x = Distance, y = log(AvgFitness/BaseFitness)), data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = ""))) +
+    geom_point(aes(x = Distance, y = log(AvgFitness/BaseFitness)), data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = ""))) +
+    stat_function(fun = mut_fit_decay, args = list(Alpha = coef(fit_fit)[1], Beta = coef(fit_fit)[2]), col = 'dodgerblue', data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = ""))) +
+    stat_function(fun = mut_fit_decay, args = list(Alpha = coef(fit_flat)[1], Beta = coef(fit_flat)[2]), col = 'firebrick1', data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = ""))) +
+    labs(title = repl, y = expression(log(W[avg]/W[base]))) +
+    annotate(geom = "text", x = 2.0, y = mut_fit_decay(4, coef(fit_fit)[1], coef(fit_fit)[2])*0.9, label = paste("Fit alpha = ", round(coef(fit_fit)[1], 5), "\nFit beta = ", round(coef(fit_fit)[2], 5))) +
+    annotate(geom = "text", x = 2.0, y = mut_fit_decay(4, coef(fit_fit)[1], coef(fit_fit)[2]), label = paste("Flat alpha = ", round(coef(fit_flat)[1], 5), "\nFlat beta = ", round(coef(fit_flat)[2], 5))) #+
+    #ylim(0, 1)
+  
+  alpha_df <- add_row(alpha_df, RunName = repl, Alpha = coef(fit_fit)[1], Beta = coef(fit_fit)[2], pop = "Fit")
+  alpha_df <- add_row(alpha_df, RunName = repl, Alpha = coef(fit_flat)[1], Beta = coef(fit_flat)[2], pop = "Flat")
+  
+  ggsave(plot = alphaplt, filename = paste(repl, ".png", sep = ""), device = 'png', width = 7, height = 7)
+}
+
+megaplot <- ggplot() + xlim(1, 4) + labs(x = "Distance", y = expression(W[avg]/W[base]))
+
+for (repl in unique(alpha_df$RunName)) {
+  dat_fit <- filter(alpha_df, RunName == repl, pop == "Fit")
+  dat_flat <- filter(alpha_df, RunName == repl, pop == "Flat")
+  megaplot <- megaplot + stat_function(fun = mut_fit_decay, col = 'dodgerblue', data = dat_fit, args = list(Alpha = dat_fit$Alpha, Beta = dat_fit$Beta), alpha = 0.9)
+  megaplot <- megaplot + stat_function(fun = mut_fit_decay, col ="firebrick1", data = dat_flat, args = list(Alpha = dat_flat$Alpha, Beta = dat_flat$Beta), alpha = 0.9)
+}
+
+ggsave(plot = megaplot, filename = "CombinedAlphaBetaPlot.pdf", device = cairo_pdf)
+```
+
+Figure 5. Comparison of Alpha and Beta for each treatment.
+```{r}
+
+alpha_comp <- ggplot(data = alpha_df) +
+  geom_boxplot(notch = TRUE, aes(x = pop, y = Alpha, fill = pop)) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  guides(fill = FALSE) +
+  labs(x = "", y = expression(alpha)) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) 
+
+beta_comp <- ggplot(data = alpha_df) +
+  geom_boxplot(notch = TRUE, aes(x = pop, y = Beta, fill = pop)) +
+  scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  guides(fill = FALSE) +
+  labs(x = "", y = expression(beta)) +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) 
+
+beta_corr_fit <- lm(Beta ~ Alpha, data = alpha_df) #nls(Beta ~ I((a*Alpha^2)+(b*Alpha)+c), data = alpha_df, start = list(a = 1, b = 1, c = 0)) insignificant "a"" term.
+
+beta_fn <- function(alph) {
+  p = coef(beta_corr_fit)
+  return(p[2]*alph + p[1])
+}
+
+alpha_beta_corr <- ggplot(data = alpha_df) +
+  geom_point(aes(x = Alpha, y = Beta, col = pop)) +
+  scale_color_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
+  stat_function(mapping = aes(x = Alpha, y = Beta), geom = "line", fun = beta_fn) +
+  labs(x = expression(alpha), y = expression(beta), col = "") +
+  theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) 
+
+alpha_comp
+beta_comp
+alpha_beta_corr
+
+alpha_sig <- wilcox.test(filter(alpha_df, pop == "Fit")$Alpha, filter(alpha_df, pop == "Flat")$Alpha)
+beta_sig <- wilcox.test(filter(alpha_df, pop == "Fit")$Beta, filter(alpha_df, pop == "Flat")$Beta)
+alpha_sig
+beta_sig
+
+combo_alphabeta <- ggdraw() + draw_plot(alpha_comp, 0, 0, 0.45, 1) + draw_plot(beta_comp, 0.45, 0, 0.5, 1) + draw_plot_label(label = c("a", "b"), c(0, 0.45), c(1, 1))
+
+combo_alphabeta
+ggsave(combo_alphabeta, filename = "Fig5AlphaBeta.pdf", device = cairo_pdf, width = 10, height = 5)
+ggsave(alpha_beta_corr, filename = "AlphaBetaCorr.pdf", device = cairo_pdf, width = 10, height = 8)
+
+```
+
+Counting successful competitions. Successful competitions are ones in which the flat organism reached a frequency of 0.95 in three of five replicates for at least one mutation rate. Note that almost all flat organisms outperform the fit ones at high mutation rates, but to a lesser degree.
+```{r}
+comp_summary_names <- c(
+  X1 = "Replicate",
+  X2 = "Successful",
+  X3 = "Mu"
+)
+
+comp_summary_types <- cols(
+  Replicate = col_character(),
+  Successful = col_character(),
+  Mu = col_double()
+)
+
+sof_compeitions_bm0 <- read_csv("./competition/sof_compeitions_bm0.csv", col_names = comp_summary_names, col_types = comp_summary_types)
+
+num_successful <- length(unique(filter(sof_compeitions_bm0, Successful == "True")$Replicate))
+cat("Number of successful genotype pairs:", num_successful)
+
+```

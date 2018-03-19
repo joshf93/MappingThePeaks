@@ -10,7 +10,6 @@ for target_dir in targets:
     for zipfile in os.scandir(target_dir):
         if zipfile.is_file() and zipfile.path.endswith("zip"):
             print("Extracting {}.".format(zipfile.name))
-            #print("Command is: {}".format("unzip {}".format(zipfile.path)))
             subprocess.call("unzip {}".format(zipfile.path), shell = True,\
                         cwd = target_dir)
 
@@ -28,6 +27,7 @@ for target_dir in targets:
 
     # Remove the temporary /mnt/ folder
     subprocess.call("rm -r mnt", shell = True, cwd = target_dir)
+    # Remove all zips.
     subprocess.call("rm *.zip", shell = True, cwd = target_dir)
 
 print("Done!")
