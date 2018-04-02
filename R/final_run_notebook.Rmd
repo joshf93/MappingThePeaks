@@ -771,8 +771,8 @@ alpha_beta_corr
 
 alpha_sig <- wilcox.test(filter(alpha_df, pop == "Fit")$Alpha, filter(alpha_df, pop == "Flat")$Alpha)
 beta_sig <- wilcox.test(filter(alpha_df, pop == "Fit")$Beta, filter(alpha_df, pop == "Flat")$Beta)
-alpha_sig
-beta_sig
+alpha_sig$p.value
+beta_sig$p.value
 
 combo_alphabeta <- ggdraw() + draw_plot(alpha_comp, 0, 0, 0.45, 1) + draw_plot(beta_comp, 0.45, 0, 0.5, 1) + draw_plot_label(label = c("a", "b"), c(0, 0.45), c(1, 1))
 
