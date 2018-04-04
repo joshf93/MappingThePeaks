@@ -433,7 +433,7 @@ one_lethal <- ggplot(onestep_nonmelt, aes(x = pop, y = Lethal, fill = pop)) +
   guides(fill=FALSE) +
   annotate(geom = "text", label = "Lethal", x = 0.75, y = max(onestep_nonmelt$Lethal), size = annotate_txt_size)
 
-one_del <- ggplot(onestep_nonmelt, aes(x = pop, y = Deleterious, fill = pop)) +
+one_del <- ggplot(onestep_nonmelt, aes(x = pop, y = AnyDel, fill = pop)) +
   geom_boxplot(notch = T) +
   scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) + 
   labs(x = "", y = "Fraction of Mutations", fill = "") + 
@@ -449,7 +449,7 @@ one_sltdel <- ggplot(onestep_nonmelt, aes(x = pop, y = Slt.Deleterious, fill = p
   labs(x = "", y = "Fraction of Mutations", fill = "") + 
   scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
   theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
-  scale_x_discrete(labels=c("", "")) +
+  scale_x_discrete(labels=c("Fit", "Flat")) +
   guides(fill=FALSE)+
   annotate(geom = "text", label = "Slt. Deleterious", x = 0.75, y = max(onestep_nonmelt$Slt.Deleterious), size = annotate_txt_size)
 
@@ -459,7 +459,7 @@ one_neut <- ggplot(onestep_nonmelt, aes(x = pop, y = Neutral, fill = pop)) +
   labs(x = "", y = "Fraction of Mutations", fill = "") + 
   scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
   theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
-  scale_x_discrete(labels=c("", "")) +
+  scale_x_discrete(labels=c("Fit", "Flat")) +
   guides(fill=FALSE)+
   annotate(geom = "text", label = "Neutral", x = 0.75, y = max(onestep_nonmelt$Neutral), size = annotate_txt_size)
 
@@ -468,7 +468,7 @@ one_ben <- ggplot(onestep_nonmelt, aes(x = pop, y = Beneficial, fill = pop)) + g
   labs(x = "", y = "Fraction of Mutations", fill = "") + 
   scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
   theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
-  scale_x_discrete(labels=c("", "")) +
+  scale_x_discrete(labels=c("Fit", "Flat")) +
   guides(fill=FALSE)+
   annotate(geom = "text", label = "Beneficial", x = 0.75, y = max(onestep_nonmelt$Beneficial), size = annotate_txt_size)
 
@@ -479,12 +479,6 @@ one_relfit <- ggplot(onestep_nonmelt, aes(x = pop, y = AvgFitness/BaseFitness, f
   theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) #+
   #annotate(geom = "text", label = "Avg. Rel. Fitness", x = 0.75, y = max(onestep_nonmelt$AvgFitness/onestep_nonmelt$BaseFitness), size = annotate_txt_size)
 
-comb_one_plt <- ggdraw() + draw_plot(one_ben, 0, 0.5, 0.333, 0.5) + draw_plot(one_neut, 0.333, 0.5, 0.333, 0.5) + draw_plot(one_sltdel, 0.666, 0.5, 0.333, 0.5) +
-  draw_plot(one_del, 0, 0, 0.333, 0.5) + draw_plot(one_lethal, 0.333, 0, 0.333, 0.5) + draw_plot(one_relfit, 0.666, 0, 0.333, 0.5) + draw_plot_label(label = c("a", "b", "c", "d", "e", "f"), c(0, 0.333, 0.666,0, 0.333, 0.666), c(1.0, 1.0, 1.0, 0.5, 0.5, 0.5), size = 25)
-
-ggsave(filename = "Fig3OneStepComp.pdf", plot = comb_one_plt, device = cairo_pdf, width = 24, height = 10)
-
-comb_one_plt
 
 one_alldel <- ggplot(onestep_nonmelt, aes(x = pop, y = AnyDel, fill = pop)) +
   geom_boxplot(notch = T) +
@@ -492,9 +486,16 @@ one_alldel <- ggplot(onestep_nonmelt, aes(x = pop, y = AnyDel, fill = pop)) +
   labs(x = "", y = "Fraction of Mutations", fill = "") + 
   scale_color_manual(guide = FALSE, labels = c("One"), values = c("black")) +
   theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) +
-  scale_x_discrete(labels=c("", "")) +
+  scale_x_discrete(labels=c("Fit", "Flat")) +
   guides(fill=FALSE)+
-  annotate(geom = "text", label = "All Deleterious", x = 0.75, y = max(onestep_nonmelt$AnyDel), size = annotate_txt_size)
+  annotate(geom = "text", label = "Deleterious", x = 0.75, y = max(onestep_nonmelt$AnyDel), size = annotate_txt_size)
+
+comb_one_plt <- ggdraw() + draw_plot(one_ben, 0, 0.5, 0.333, 0.5) + draw_plot(one_neut, 0.333, 0.5, 0.333, 0.5) + #draw_plot(one_sltdel, 0.666, 0.5, 0.333, 0.5) +
+  draw_plot(one_alldel, 0.666, 0.5, 0.333, 0.5) + draw_plot(one_lethal, 0.166, 0, 0.333, 0.5) + draw_plot(one_relfit, 0.5, 0, 0.333, 0.5) + draw_plot_label(label = c("a", "b", "c", "d", "e"), c(0, 0.333, 0.666, 0.166, 0.5), c(1.0, 1.0, 1.0, 0.5, 0.5), size = 25)
+
+ggsave(filename = "Fig3OneStepComp.pdf", plot = comb_one_plt, device = cairo_pdf, width = 24, height = 10)
+
+comb_one_plt
 
 one_reldelsize <- ggplot(onestep_nonmelt, aes(x = pop, y = AvgDelSize/BaseFitness, fill = pop)) + geom_boxplot(notch = T) +
   scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
@@ -590,8 +591,8 @@ effect_bplots <- ggplot(frls_melted, aes(x = StepNum, y = value, fill = pop)) +
   labs(x = "", y = "Fraction of Mutations", title = "Summarized Distribution of Fitness Effects", fill = "") + 
   scale_x_discrete(labels=c("1", "2", "3", "4")) +
   xlab("Distance") +
-  facet_grid(. ~ variable) +
-  scale_y_log10() #actually makes Neut and Ben more readable without killing Lethal and Del too much. log10 makes lethal and del unreadable. None makes neut/ben difficult to read.
+  facet_grid(. ~ variable) #+
+  #scale_y_log10() #actually makes Neut and Ben more readable without killing Lethal and Del too much. log10 makes lethal and del unreadable. None makes neut/ben difficult to read.
 
 ggsave(effect_bplots, filename = "Fig4DFE.pdf", device = cairo_pdf, width = 8, height = 5)
 effect_bplots
