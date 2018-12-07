@@ -3,6 +3,8 @@ title: "Mapping the Peaks R Notebook"
 output:
   html_document: default
   html_notebook: default
+editor_options: 
+  chunk_output_type: console
 ---
 
 Figure 1, showing fitness across the adaptation phase. Also shows a boxplot comparing the fitness from the end of the initial phase and the end of the adaptation phase.
@@ -34,54 +36,6 @@ bootmean <- function(data, indices) {
 
 ```{r, results='hold'}
 
-# Avg Columns
-avgcols = cols(
-  X1 = col_integer(),
-  X2 = col_double(),
-  X3 = col_double(),
-  X4 = col_double(),
-  X5 = col_double(),
-  X6 = col_double(),
-  X7 = col_double(),
-  X8 = col_double(),
-  X9 = col_double(),
-  X10 = col_double(),
-  X11 = col_double(),
-  X12 = col_double(),
-  X13 = col_double(),
-  X14 = col_double(),
-  X15 = col_double(),
-  X16 = col_double(),
-  X17 = col_double(),
-  X18 = col_character(),
-  X19 = col_double(),
-  X20 = col_integer()
-)
-
-# Dom Columns
-domcols = cols(
-  X1 = col_integer(),
-  X2 = col_double(),
-  X3 = col_double(),
-  X4 = col_double(),
-  X5 = col_double(),
-  X6 = col_integer(),
-  X7 = col_integer(),
-  X8 = col_integer(),
-  X9 = col_double(),
-  X10 = col_integer(),
-  X11 = col_double(),
-  X12 = col_double(),
-  X13 = col_double(),
-  X14 = col_double(),
-  X15 = col_double(),
-  X16 = col_character(),
-  X17 = col_double(),
-  X18 = col_character(),
-  X19 = col_double(),
-  X20 = col_integer()
-)
-
 avgnamescols <- c(
   X1 = "Update",
   X2 = "Merit",
@@ -99,22 +53,19 @@ avgnamescols <- c(
   X14 = "NeutralMetric",
   X15 = "LineageLabel",
   X16 = "TrueRepRate",
-  X17 = "Broken",
-  X18 = "Replicate",
-  X19 = "EndOfInitFit",
-  X20 = "IndexInAvgFile"
-
+  X17 = "Replicate",
+  X18 = "EndOfInitFit",
+  X19 = "IndexInAvgFile",
+  pop = "pop"
 )
 
-fr_popA <- read_delim("./data/final_run_AB_popA_recomb_ave.dat", " ",
-                        escape_double = FALSE, col_names = FALSE, trim_ws = TRUE, skip = 22, col_types = avgcols)
+fr_popA <- read_table2("./data/final_run_AB_popA_recomb_ave_DESPACED2.dat", col_names = FALSE, skip = 22, col_types = cols())
 fr_popA$pop = "Fit"
-fr_popA <- plyr::rename(fr_popA, avgnamescols)
+colnames(fr_popA) <- avgnamescols
 
-fr_popB <- read_delim("./data/final_run_AB_popB_recomb_ave.dat", " ",
-                        escape_double = FALSE, col_names = FALSE, trim_ws = TRUE, skip = 22, col_types = avgcols)
+fr_popB <- read_table2("./data/final_run_AB_popB_recomb_ave_DESPACED2.dat", col_names = FALSE, skip = 22, col_types = cols())
 fr_popB$pop = "Flat"
-fr_popB <- plyr::rename(fr_popB, avgnamescols)
+colnames(fr_popB) <- avgnamescols
 
 fr_AB <- rbind(fr_popA, fr_popB)
 ```
@@ -694,44 +645,58 @@ ggsave(filename = "RelDelLethalSize.pdf", plot = combo_reldellethalsize, device 
 
 Calculate all of the alphas and betas using the DFE data. Output plots. Make a new dataframe containing all of the alphas and betas.
 ```{r}
+#mut_fit_decay <- function(dist, Alpha, Beta) {
+#  -Alpha*dist - Beta * dist^2
+#}
+
 mut_fit_decay <- function(dist, Alpha, Beta) {
-  -Alpha*dist - Beta * dist^2
+  -Alpha*dist^Beta
 }
 
 setwd("./alpha_fits_dfe")
 
-alpha_df <- tibble(RunName = character(), Alpha = double(), Beta = double(), pop = character())
+alpha_df <- tibble(RunName = character(), Alpha = double(), Beta = double(), pop = character(), se = double())
 
 for (repl in unique(frls_combo$Rep)) {
-  fit_fit <-nls(formula = log(AvgFitness/BaseFitness) ~ -alpha*Distance-beta*Distance^2, data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = "")), start = c(alpha = 1, beta = 0.01), control = nls.control(tol = 0.005, warnOnly = TRUE))
-  fit_flat <-nls(formula = log(AvgFitness/BaseFitness) ~ -alpha*Distance-beta*Distance^2, data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = "")), start = c(alpha = 1, beta = 0.01), control = nls.control(tol = 0.005, warnOnly = TRUE))
+  fit_fit <-nls(formula = log(AvgFitness/BaseFitness) ~ -alpha*Distance^beta, data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = "")), start = c(alpha = 1, beta = 1), control = nls.control(warnOnly = TRUE))
+  fit_flat <-nls(formula = log(AvgFitness/BaseFitness) ~ -alpha*Distance^beta, data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = "")), start = c(alpha = 1, beta = 1), control = nls.control(warnOnly = TRUE))
   
+  fit_fit_summary <- summary(fit_fit)
+  fit_flat_summary <- summary(fit_flat)
+
   alphaplt <- ggplot() + 
-    geom_point(aes(x = Distance, y = log(AvgFitness/BaseFitness)), data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = ""))) +
-    geom_point(aes(x = Distance, y = log(AvgFitness/BaseFitness)), data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = ""))) +
+    geom_point(aes(x = Distance, y = log(AvgFitness/BaseFitness), col = "Flat"), data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = ""))) +
+    geom_point(aes(x = Distance, y = log(AvgFitness/BaseFitness), col = "Fit"), data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = ""))) +
     stat_function(fun = mut_fit_decay, args = list(Alpha = coef(fit_fit)[1], Beta = coef(fit_fit)[2]), col = 'dodgerblue', data = filter(frls_combo, RunName == paste(repl, "_Fit", sep = ""))) +
     stat_function(fun = mut_fit_decay, args = list(Alpha = coef(fit_flat)[1], Beta = coef(fit_flat)[2]), col = 'firebrick1', data = filter(frls_combo, RunName == paste(repl, "_Flat", sep = ""))) +
-    labs(title = repl, y = expression(log(W[avg]/W[base]))) +
-    annotate(geom = "text", x = 2.0, y = mut_fit_decay(4, coef(fit_fit)[1], coef(fit_fit)[2])*0.9, label = paste("Fit alpha = ", round(coef(fit_fit)[1], 5), "\nFit beta = ", round(coef(fit_fit)[2], 5))) +
-    annotate(geom = "text", x = 2.0, y = mut_fit_decay(4, coef(fit_fit)[1], coef(fit_fit)[2]), label = paste("Flat alpha = ", round(coef(fit_flat)[1], 5), "\nFlat beta = ", round(coef(fit_flat)[2], 5))) #+
-    #ylim(0, 1)
+    labs(title = repl, y = expression(log(W[avg]/W[base])), color = "Population") +
+    annotate(geom = "text", x = 2.0, y = mut_fit_decay(4, coef(fit_fit)[1], coef(fit_fit)[2])*0.75, label = paste("Fit alpha = ", round(coef(fit_fit)[1], 5), "\nFit beta = ", round(coef(fit_fit)[2], 5), "\nFit Residual Std Error = ", round(fit_fit_summary$sigma, 5))) +
+    annotate(geom = "text", x = 2.0, y = mut_fit_decay(4, coef(fit_fit)[1], coef(fit_fit)[2]*0.90), label = paste("Flat alpha = ", round(coef(fit_flat)[1], 5), "\nFlat beta = ", round(coef(fit_flat)[2], 5), "\nFlat Residual Std Error = ", round(fit_flat_summary$sigma, 5))) +
+    scale_color_manual(values = c("Fit" = "skyblue", "Flat" = "firebrick3"))
   
-  alpha_df <- add_row(alpha_df, RunName = repl, Alpha = coef(fit_fit)[1], Beta = coef(fit_fit)[2], pop = "Fit")
-  alpha_df <- add_row(alpha_df, RunName = repl, Alpha = coef(fit_flat)[1], Beta = coef(fit_flat)[2], pop = "Flat")
+  alpha_df <- add_row(alpha_df, RunName = repl, Alpha = coef(fit_fit)[1], Beta = coef(fit_fit)[2], pop = "Fit", se = fit_fit_summary$sigma)
+  alpha_df <- add_row(alpha_df, RunName = repl, Alpha = coef(fit_flat)[1], Beta = coef(fit_flat)[2], pop = "Flat", se = fit_flat_summary$sigma)
   
   ggsave(plot = alphaplt, filename = paste(repl, ".png", sep = ""), device = 'png', width = 7, height = 7)
 }
 
-megaplot <- ggplot() + xlim(1, 4) + labs(x = "Distance", y = expression(W[avg]/W[base]))
+megaplot <- ggplot() + xlim(1, 4) + labs(x = "Distance", y = expression(log(W[avg]/W[base])))
 
 for (repl in unique(alpha_df$RunName)) {
   dat_fit <- filter(alpha_df, RunName == repl, pop == "Fit")
   dat_flat <- filter(alpha_df, RunName == repl, pop == "Flat")
-  megaplot <- megaplot + stat_function(fun = mut_fit_decay, col = 'dodgerblue', data = dat_fit, args = list(Alpha = dat_fit$Alpha, Beta = dat_fit$Beta), alpha = 0.9)
-  megaplot <- megaplot + stat_function(fun = mut_fit_decay, col ="firebrick1", data = dat_flat, args = list(Alpha = dat_flat$Alpha, Beta = dat_flat$Beta), alpha = 0.9)
+  megaplot <- megaplot + stat_function(fun = mut_fit_decay, col = 'dodgerblue', data = dat_fit, args = list(Alpha = dat_fit$Alpha, Beta = dat_fit$Beta), alpha = 0.5)
+  megaplot <- megaplot + stat_function(fun = mut_fit_decay, col ="firebrick1", data = dat_flat, args = list(Alpha = dat_flat$Alpha, Beta = dat_flat$Beta), alpha = 0.5)
 }
 
-ggsave(plot = megaplot, filename = "CombinedAlphaBetaPlot.pdf", device = cairo_pdf)
+ggplot(data = alpha_df) +
+  geom_boxplot(aes(x = pop, y = se, fill = pop), notch = T) +
+  scale_fill_manual(values = c("Fit" = "dodgerblue", "Flat" = "firebrick1")) + 
+  labs(x = "", y = "Residual Standard Error") +
+  guides(fill=F)
+
+ggsave(plot = megaplot, filename = "CombinedAlphaBetaPlot.pdf", device = cairo_pdf, width = 7, height = 7)
+setwd("..")
 ```
 
 Figure 5. Comparison of Alpha and Beta for each treatment.
@@ -747,7 +712,7 @@ alpha_comp <- ggplot(data = alpha_df) +
 beta_comp <- ggplot(data = alpha_df) +
   geom_boxplot(notch = TRUE, aes(x = pop, y = Beta, fill = pop)) +
   scale_fill_manual(values = c(Fit = "dodgerblue", Flat = "firebrick1")) +
-  geom_hline(yintercept = 0, linetype = 2) +
+  geom_hline(yintercept = 1, linetype = 2) +
   guides(fill = FALSE) +
   labs(x = "", y = expression(beta)) +
   theme(axis.text=element_text(size=18), legend.text=element_text(size=18), title=element_text(size=20), axis.title=element_text(size=20)) 
@@ -800,6 +765,6 @@ comp_summary_types <- cols(
 sof_compeitions_bm0 <- read_csv("./competition/sof_compeitions_bm0.csv", col_names = comp_summary_names, col_types = comp_summary_types)
 
 num_successful <- length(unique(filter(sof_compeitions_bm0, Successful == "True")$Replicate))
-cat("Number of successful genotype pairs:", num_successful)
+cat("Number of successful genotype pairs:", num_successful, "\n")
 
 ```

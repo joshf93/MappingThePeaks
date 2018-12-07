@@ -8,11 +8,15 @@ import math
 import os
 import subprocess
 
-def sof_fit(mu, alpha, beta):
-    return(sof_fit.w0 * np.exp((-alpha*mu) - (beta*(mu**2))))
+# Initial fit used, changed after reivew to current method.
+#def sof_fit(mu, alpha, beta):
+#    return(sof_fit.w0 * np.exp((-alpha*mu) - (beta*(mu**2))))
 
-def sof_gamma_fit(mu, alpha, beta, gamma):
-    return(sof_fit.w0 * np.exp((-alpha*mu) - (beta*(mu**2) - (gamma*(mu**3)))))
+def sof_fit(mu, alpha, beta):
+    return(sof_fit.w0 * np.exp((-alpha*mu*beta))) 
+
+#def sof_gamma_fit(mu, alpha, beta, gamma):
+#    return(sof_fit.w0 * np.exp((-alpha*mu) - (beta*(mu**2) - (gamma*(mu**3)))))
 
 def process_rep(pathpair, rep_name, output_directory, output_list):
     highfit = 0
@@ -52,13 +56,13 @@ def process_rep(pathpair, rep_name, output_directory, output_list):
         #The first version uses the variance data to control the weight of the points,
         #But causes some weird fits, especially in the high variance spatial data
         #popt, pcov = curve_fit(f=sof_fit, xdata=mu_arr, ydata=ff_arr, sigma=sd_arr)
-        popt, pcov = curve_fit(f=sof_gamma_fit, xdata=mu_arr, ydata=ff_arr)
+        popt, pcov = curve_fit(f=sof_fit, xdata=mu_arr, ydata=ff_arr)
         if pop == "Fit":
             col = 'b'
         else:
             col = 'r'
         plt.plot(mu_arr, ff_arr, '{}x'.format(col), label="Data {}".format(pop))
-        plt.plot(mu_arr, sof_gamma_fit(mu_arr, *popt), '{}-'.format(col), label='Curve {}'.format(pop))
+        plt.plot(mu_arr, sof_fit(mu_arr, *popt), '{}-'.format(col), label='Curve {}'.format(pop))
         plt.errorbar(mu_arr, finalfit, yerr=sd, ecolor = col, linestyle = "None")
         xcord = 0.25
         # Constraints on a and b mentioned by the supplementary info of SOF.
@@ -66,13 +70,13 @@ def process_rep(pathpair, rep_name, output_directory, output_list):
         c2 = bool(popt[0] <= 1)
         if pop == "Fit":
              ycord = 0.85
-             plt.annotate(s="{}: a={:.3f}, b={:.3f}, y={:.3f} C1={}, C2={}".format("Fit", popt[0], popt[1], popt[2], c1, c2),
+             plt.annotate(s="{}: a={:.3f}, b={:.3f}, C1={}, C2={}".format("Fit", popt[0], popt[1], c1, c2),
                           xy=(xcord,ycord), xycoords = "figure fraction", size=10)
         else:
             ycord = 0.82
-            plt.annotate(s="{}: a={:.3f}, b={:.3f}, y={:.3f} C1={}, C2={}".format("Flat", popt[0], popt[1], popt[2], c1, c2),
+            plt.annotate(s="{}: a={:.3f}, b={:.3f}, C1={}, C2={}".format("Flat", popt[0], popt[1], c1, c2),
                          xy=(xcord,ycord), xycoords = "figure fraction", size=10)
-        rep_list.append((rep_name, popt[0], popt[1], popt[2], pop))
+        rep_list.append((rep_name, popt[0], popt[1], pop))
         #print(popt)
         #print("Initfit: {}".format(initfit[0]))
     
