@@ -689,14 +689,23 @@ for (repl in unique(alpha_df$RunName)) {
   megaplot <- megaplot + stat_function(fun = mut_fit_decay, col ="firebrick1", data = dat_flat, args = list(Alpha = dat_flat$Alpha, Beta = dat_flat$Beta), alpha = 0.5)
 }
 
-ggplot(data = alpha_df) +
+fitFlatSE <- ggplot(data = alpha_df) +
   geom_boxplot(aes(x = pop, y = se, fill = pop), notch = T) +
   scale_fill_manual(values = c("Fit" = "dodgerblue", "Flat" = "firebrick1")) + 
   labs(x = "", y = "Residual Standard Error") +
   guides(fill=F)
 
+histSE <- ggplot(data = alpha_df) +
+  geom_histogram(aes(x = se), binwidth = 0.001, col = "black") +
+  labs(x = "Residual Standard Error", y = "Count")
+
 ggsave(plot = megaplot, filename = "CombinedAlphaBetaPlot.pdf", device = cairo_pdf, width = 7, height = 7)
+
 setwd("..")
+
+ggsave(plot = histSE, filename = "alphaBetaFitResidualSE.pdf", device = cairo_pdf, width = 7, height = 7)
+
+ggsave(plot = fitFlatSE, filename = "alphaBetaFitResidualSE_fitVflat.pdf", device = cairo_pdf, width = 7, height = 7)
 ```
 
 Figure 5. Comparison of Alpha and Beta for each treatment.
